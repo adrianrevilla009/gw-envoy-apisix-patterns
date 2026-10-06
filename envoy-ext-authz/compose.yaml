@@ -1,0 +1,13 @@
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.31.2
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    volumes: ["./envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["8080:8080"]
+    depends_on: [auth, orders]
+  auth:
+    image: python:3.12-slim
+    command: ["python", "/app/app.py"]
+    volumes: ["./auth:/app:ro"]
+  orders:
+    image: traefik/whoami:v1.10.3

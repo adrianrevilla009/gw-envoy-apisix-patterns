@@ -1,0 +1,55 @@
+# Local limit on every request, plus a global limit via the ratelimit service, keyed on x-client-id.
+static_resources:
+  listeners:
+  - name: main
+    address: {socket_address: {address: 0.0.0.0, port_value: 8080}}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress
+          route_config:
+            virtual_hosts:
+            - name: orders
+              domains: ["*"]
+              routes:
+              - match: {prefix: "/"}
+                route:
+                  cluster: orders
+                  rate_limits:
+                  - actions: [{request_headers: {header_name: x-client-id, descriptor_key: client}}]
+          http_filters:
+          - name: envoy.filters.http.local_ratelimit
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+              stat_prefix: local_rl
+              token_bucket: {max_tokens: 10, tokens_per_fill: 10, fill_interval: 1s}
+              filter_enabled: {runtime_key: local_rl_enabled, default_value: {numerator: 100, denominator: HUNDRED}}
+              filter_enforced: {runtime_key: local_rl_enforced, default_value: {numerator: 100, denominator: HUNDRED}}
+          - name: envoy.filters.http.ratelimit
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+              domain: orders
+              failure_mode_deny: false
+              rate_limit_service:
+                transport_api_version: V3
+                grpc_service: {envoy_grpc: {cluster_name: ratelimit}}
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: orders
+    type: STRICT_DNS
+    load_assignment:
+      cluster_name: orders
+      endpoints: [{lb_endpoints: [{endpoint: {address: {socket_address: {address: orders, port_value: 80}}}}]}]
+  - name: ratelimit
+    type: STRICT_DNS
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config: {http2_protocol_options: {}}
+    load_assignment:
+      cluster_name: ratelimit
+      endpoints: [{lb_endpoints: [{endpoint: {address: {socket_address: {address: ratelimit, port_value: 8081}}}}]}]

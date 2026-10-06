@@ -1,0 +1,24 @@
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.31.2
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    volumes: ["./envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["8080:8080"]
+    depends_on: [orders, ratelimit]
+  ratelimit:
+    image: envoyproxy/ratelimit:e059638d
+    command: ["/bin/ratelimit"]
+    environment:
+      USE_STATSD: "false"
+      LOG_LEVEL: warn
+      REDIS_SOCKET_TYPE: tcp
+      REDIS_URL: redis:6379
+      RUNTIME_ROOT: /data
+      RUNTIME_SUBDIRECTORY: ratelimit
+      RUNTIME_WATCH_ROOT: "false"
+    volumes: ["./ratelimit/config:/data/ratelimit/config:ro"]
+    depends_on: [redis]
+  redis:
+    image: redis:7.4.1-alpine
+  orders:
+    image: traefik/whoami:v1.10.3

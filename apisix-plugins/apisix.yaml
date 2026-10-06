@@ -1,0 +1,24 @@
+# APISIX standalone (YAML-driven) config: no etcd needed.
+routes:
+  - id: orders-v2
+    uri: /v2/orders/*
+    upstream_id: orders
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/v2/orders/(.*)", "/$1"]
+        headers:
+          set:
+            X-Gateway: apisix
+      limit-count:
+        count: 5
+        time_window: 60
+        key_type: var
+        key: remote_addr
+        rejected_code: 429
+        policy: local
+upstreams:
+  - id: orders
+    type: roundrobin
+    nodes:
+      "orders:80": 1
+#END

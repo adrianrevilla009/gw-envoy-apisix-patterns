@@ -1,0 +1,9 @@
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.31.2
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    volumes: ["./envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["8080:8080"]
+    depends_on: [orders]
+  orders:
+    image: traefik/whoami:v1.10.3

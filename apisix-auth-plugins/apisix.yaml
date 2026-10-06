@@ -1,0 +1,25 @@
+# APISIX standalone config: key-auth on a route, with one consumer.
+routes:
+  - id: orders
+    uri: /orders/*
+    upstream_id: orders
+    plugins:
+      key-auth:
+        header: apikey
+      proxy-rewrite:
+        regex_uri: ["^/orders/(.*)", "/$1"]
+consumers:
+  - username: alice
+    plugins:
+      key-auth:
+        key: demo-key-alice
+      limit-count:
+        count: 3
+        time_window: 60
+        rejected_code: 429
+upstreams:
+  - id: orders
+    type: roundrobin
+    nodes:
+      "orders:80": 1
+#END

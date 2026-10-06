@@ -1,0 +1,6 @@
+domain: orders
+descriptors:
+  - key: client
+    rate_limit:
+      unit: minute
+      requests_per_unit: 5
